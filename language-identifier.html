@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Multilingual Language Identifier</title>
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--tx:#1f2430;--mu:#667085;--bd:#e3e1d9;--ac:#2f5bea;--ac2:#e8eefe;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161c;--card:#1d2029;--tx:#eceef3;--mu:#9aa1b2;--bd:#2c303c;--ac:#7c9bff;--ac2:#252c45}}
+:root[data-theme="dark"]{--bg:#14161c;--card:#1d2029;--tx:#eceef3;--mu:#9aa1b2;--bd:#2c303c;--ac:#7c9bff;--ac2:#252c45}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans","Noto Sans Devanagari","Noto Sans Telugu","Noto Sans Tamil","Noto Sans Bengali","Noto Naskh Arabic",sans-serif}
+main{max-width:780px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.5rem;margin:8px 0 2px}
+.sub{color:var(--mu);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin:0 0 10px}
+textarea{width:100%;min-height:110px;resize:vertical;border:1px solid var(--bd);border-radius:10px;padding:12px;font:inherit;background:var(--bg);color:var(--tx)}
+textarea:focus{outline:2px solid var(--ac);outline-offset:1px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+button{font:inherit;font-size:.85rem;border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:6px 11px;border-radius:999px;cursor:pointer}
+button:hover{background:var(--ac2)}
+button.go{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600;padding:8px 18px}
+.big{font-size:1.6rem;font-weight:700;margin:0}
+.badge{display:inline-block;background:var(--ac2);color:var(--ac);border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:600;margin-left:8px;vertical-align:middle}
+.bar{display:grid;grid-template-columns:150px 1fr 52px;gap:8px;align-items:center;font-size:.9rem;margin:5px 0}
+.track{background:var(--bg);border-radius:6px;height:12px;overflow:hidden}
+.fill{height:100%;border-radius:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:3px 9px;border-radius:8px;font-size:.95rem;border:1px solid transparent}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:.8rem;color:var(--mu)}
+.dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.ng{display:inline-block;font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:2px 7px;margin:3px 4px 3px 0;font-size:.85rem}
+p.note{color:var(--mu);font-size:.9rem;margin:6px 0 0}
+ol{margin:6px 0 0;padding-left:20px}
+li{margin:4px 0}
+.hide{display:none}
+@media(max-width:520px){.bar{grid-template-columns:105px 1fr 46px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Multilingual Language Identifier</h1>
+<p class="sub">Detects language, script and code-mixing in text using Unicode script analysis and a character trigram Naive Bayes classifier. Runs fully in your browser.</p>
+
+<div class="card">
+<h2>Input text</h2>
+<textarea id="inp" placeholder="Type or paste text in any supported language…"></textarea>
+<div class="row" id="samples"></div>
+<div class="row"><button class="go" id="run">Analyze</button><button id="clr">Clear</button></div>
+</div>
+
+<div id="out" class="hide">
+<div class="card">
+<h2>Result</h2>
+<p class="big"><span id="top"></span><span class="badge" id="mix"></span></p>
+<p class="note" id="scr"></p>
+</div>
+<div class="card"><h2>Language share (by words)</h2><div id="share"></div></div>
+<div class="card"><h2>Word-level tagging</h2><div class="chips" id="chips"></div><div class="legend" id="leg"></div></div>
+<div class="card"><h2>Classifier confidence (whole text)</h2><div id="conf"></div><p class="note" id="confn"></p></div>
+<div class="card"><h2>Most informative trigrams</h2><div id="ng"></div><p class="note">Trigrams that are far more likely in the winning language than in its competitors. “_” marks a word boundary.</p></div>
+</div>
+
+<div class="card">
+<h2>How it works</h2>
+<ol>
+<li><b>Tokenize:</b> the text is split into words (letters and combining marks).</li>
+<li><b>Script detection:</b> each word is mapped to a Unicode block (Devanagari, Arabic, Telugu, Tamil, Bengali or Latin). Scripts with one supported language are resolved immediately.</li>
+<li><b>Shared scripts:</b> Latin (English, Hinglish, Spanish, French) and Arabic script (Urdu, Arabic) need statistics. Words are split into character trigrams and scored with Naive Bayes using add-0.5 smoothing.</li>
+<li><b>Code-mixing:</b> every Latin word is classified separately, so a sentence like “kal meeting hai, please be on time” is tagged word by word.</li>
+</ol>
+<p class="note"><b>Limitations:</b> the training corpus is small, so very short words can be misclassified. Marathi and Nepali share the Devanagari script with Hindi and are reported as Hindi. “Hinglish” covers Romanized Hindi/Urdu.</p>
+</div>
+</main>
+
+<script>
+const DATA={
+"English":{s:"Latin",t:["the quick brown fox jumps over the lazy dog","i am going to the market to buy some vegetables","natural language processing helps computers understand human language","she has been studying for the exam since morning","what time does the class start tomorrow","this project is about detecting languages in text","they were walking along the river when it started to rain","please send me the report before the meeting","we should have left earlier because of the traffic","he said that the weather would be better this weekend","the is are was were and to of in that it for with on as this be have not you i he she we they what when where how at on time be please"]},
+"Hinglish":{s:"Latin",t:["aap kaise ho main theek hoon","mujhe yeh kitab bahut pasand hai","kal hum college jaayenge","tum kya kar rahe ho abhi","yeh project bahut accha hai","kitne baje class shuru hogi","mujhe nahi pata ki kya karna hai","khana khaya ya nahi","chalo ghoomne chalte hain","woh log kal shaam ko aaye the","hai hain ho hoon nahi kya mein ka ki ke ko se par aur bahut accha kal aaj mujhe tumhe aap tum main hum yeh woh kaise kyun kab kahan yaar bhai abhi jaldi matlab lekin phir toh"]},
+"Spanish":{s:"Latin",t:["el rápido zorro marrón salta sobre el perro perezoso","voy al mercado para comprar algunas verduras","el procesamiento del lenguaje natural ayuda a las computadoras","ella ha estudiado para el examen desde la mañana","a qué hora empieza la clase mañana","este proyecto trata sobre la detección de idiomas","ellos caminaban por el río cuando empezó a llover","por favor envíame el informe antes de la reunión","el la los las de que y en un una es por con para se su al lo como más pero"]},
+"French":{s:"Latin",t:["le renard brun rapide saute par-dessus le chien paresseux","je vais au marché pour acheter des légumes","le traitement du langage naturel aide les ordinateurs à comprendre","elle étudie pour l’examen depuis ce matin","à quelle heure commence le cours demain","ce projet porte sur la détection des langues","ils marchaient le long de la rivière quand il a commencé à pleuvoir","s’il vous plaît envoyez-moi le rapport avant la réunion","le la les des et est un une que dans pour pas sur avec ce qui au du il elle nous vous ne"]},
+"Hindi":{s:"Devanagari",t:["मैं बाज़ार सब्ज़ियाँ खरीदने जा रहा हूँ","आप कैसे हैं","प्राकृतिक भाषा प्रसंस्करण कंप्यूटर को मानव भाषा समझने में मदद करता है","वह सुबह से परीक्षा की तैयारी कर रही है","कल कक्षा कितने बजे शुरू होगी","यह परियोजना भाषा पहचान के बारे में है"]},
+"Urdu":{s:"Arabic",t:["میں سبزیاں خریدنے بازار جا رہا ہوں","آپ کیسے ہیں","قدرتی زبان کی پروسیسنگ کمپیوٹر کو انسانی زبان سمجھنے میں مدد دیتی ہے","وہ صبح سے امتحان کی تیاری کر رہی ہے","کل کلاس کتنے بجے شروع ہوگی","یہ منصوبہ زبان کی شناخت کے بارے میں ہے","براہ کرم میٹنگ سے پہلے مجھے رپورٹ بھیج دیں"]},
+"Arabic":{s:"Arabic",t:["أنا ذاهب إلى السوق لشراء بعض الخضروات","كيف حالك اليوم","تساعد معالجة اللغات الطبيعية الحواسيب على فهم اللغة البشرية","هي تدرس للامتحان منذ الصباح","متى يبدأ الدرس غدا","يتحدث هذا المشروع عن اكتشاف اللغات في النصوص","من فضلك أرسل لي التقرير قبل الاجتماع"]},
+"Telugu":{s:"Telugu",t:["నేను కూరగాయలు కొనడానికి మార్కెట్‌కి వెళ్తున్నాను","మీరు ఎలా ఉన్నారు","సహజ భాషా ప్రాసెసింగ్ కంప్యూటర్లకు మానవ భాషను అర్థం చేసుకోవడంలో సహాయపడుతుంది","రేపు తరగతి ఎన్ని గంటలకు మొదలవుతుంది"]},
+"Tamil":{s:"Tamil",t:["நான் காய்கறிகள் வாங்க சந்தைக்குச் செல்கிறேன்","நீங்கள் எப்படி இருக்கிறீர்கள்","இயற்கை மொழி செயலாக்கம் கணினிகளுக்கு மனித மொழியை புரிந்துகொள்ள உதவுகிறது","நாளை வகுப்பு எத்தனை மணிக்கு தொடங்கும்"]},
+"Bengali":{s:"Bengali",t:["আমি সবজি কিনতে বাজারে যাচ্ছি","আপনি কেমন আছেন","প্রাকৃতিক ভাষা প্রক্রিয়াকরণ কম্পিউটারকে মানুষের ভাষা বুঝতে সাহায্য করে","আগামীকাল ক্লাস কটায় শুরু হবে"]}
+};
+const SC=[["Devanagari",/[\u0900-\u097F]/],["Arabic",/[\u0600-\u06FF\u0750-\u077F]/],["Telugu",/[\u0C00-\u0C7F]/],["Tamil",/[\u0B80-\u0BFF]/],["Bengali",/[\u0980-\u09FF]/],["Latin",/[A-Za-z\u00C0-\u00FF]/]];
+const names=Object.keys(DATA);
+const scriptOf=w=>{for(const[n,r]of SC)if(r.test(w[0]))return n;return null};
+const tok=t=>t.match(/[\p{L}\p{M}]+/gu)||[];
+const grams=w=>{const s="_"+w.toLowerCase()+"_";if(s.length<3)return[s];const g=[];for(let i=0;i<=s.length-3;i++)g.push(s.slice(i,i+3));return g};
+// ---- training ----
+const M={},V=new Set(),LEX={};
+names.forEach(n=>{M[n]={c:{},tot:0};DATA[n].t.forEach(sent=>tok(sent).forEach(w=>grams(w).forEach(g=>{M[n].c[g]=(M[n].c[g]||0)+1;M[n].tot++;V.add(g)})))});
+["English","Hinglish","Spanish","French"].forEach(n=>{const last=DATA[n].t[DATA[n].t.length-1];tok(last).forEach(w=>{w=w.toLowerCase();(LEX[w]=LEX[w]||new Set()).add(n)})});
+const lp=(n,g)=>Math.log(((M[n].c[g]||0)+0.5)/(M[n].tot+0.5*V.size));
+function classify(gs,cands){const sc=cands.map(n=>[n,gs.reduce((a,g)=>a+lp(n,g),0)]);const mx=Math.max(...sc.map(x=>x[1]));const ex=sc.map(([n,s])=>[n,Math.exp(s-mx)]);const z=ex.reduce((a,x)=>a+x[1],0);return ex.map(([n,e])=>[n,e/z]).sort((a,b)=>b[1]-a[1])}
+const byScript=s=>names.filter(n=>DATA[n].s===s);
+const COL={};names.forEach((n,i)=>COL[n]=Math.round(i*360/names.length+10));
+const hs=(n,a)=>`hsla(${COL[n]},65%,50%,${a})`;
+// ---- analysis ----
+function analyze(text){
+ const toks=tok(text);if(!toks.length)return null;
+ const info=toks.map(w=>({w,sc:scriptOf(w)}));
+ const cnt={};info.forEach(x=>cnt[x.sc]=(cnt[x.sc]||0)+1);
+ const arab=info.filter(x=>x.sc==="Arabic");let arabLang=null;
+ if(arab.length)arabLang=classify(arab.flatMap(x=>grams(x.w)),byScript("Arabic"))[0][0];
+ info.forEach(x=>{
+  if(x.sc==="Arabic")x.l=arabLang;
+  else if(x.sc==="Latin"){const lx=LEX[x.w.toLowerCase()];x.l=(lx&&lx.size===1)?[...lx][0]:classify(grams(x.w),byScript("Latin"))[0][0]}
+  else if(x.sc)x.l=byScript(x.sc)[0];
+ });
+ const ok=info.filter(x=>x.l);if(!ok.length)return null;
+ const share={};ok.forEach(x=>share[x.l]=(share[x.l]||0)+1);
+ const dom=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0][0];
+ const cands=byScript(dom);
+ const dgs=ok.filter(x=>x.sc===dom).flatMap(x=>grams(x.w));
+ const conf=classify(dgs,cands);
+ const top=Object.entries(share).sort((a,b)=>b[1]-a[1])[0][0];
+ const mixed=Object.values(share).filter(v=>v/ok.length>=0.2).length>=2;
+ let ngs=[];
+ if(cands.length>1&&cands.includes(top)){
+  const o=cands.filter(n=>n!==top),f={};
+  ok.filter(x=>x.l===top&&x.sc===dom).forEach(x=>grams(x.w).forEach(g=>f[g]=(f[g]||0)+1));
+  ngs=Object.keys(f).map(g=>[g,lp(top,g)-o.reduce((a,n)=>a+lp(n,g),0)/o.length,f[g]]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+ }
+ return{info,ok,share,top,mixed,cnt,conf,ngs,dom};
+}
+// ---- UI ----
+const $=id=>document.getElementById(id);
+function bars(el,rows){el.innerHTML=rows.map(([n,p])=>`<div class="bar"><span>${n}</span><div class="track"><div class="fill" style="width:${(p*100).toFixed(1)}%;background:${hs(n,.85)}"></div></div><span>${(p*100).toFixed(1)}%</span></div>`).join("")}
+function render(){
+ const r=analyze($("inp").value);
+ if(!r){$("out").classList.add("hide");return}
+ $("out").classList.remove("hide");
+ $("top").textContent=r.top;
+ $("mix").textContent=r.mixed?"Code-mixed":"Single language";
+ const tot=Object.values(r.cnt).reduce((a,b)=>a+b,0);
+ $("scr").textContent="Scripts: "+Object.entries(r.cnt).map(([s,c])=>`${s} ${Math.round(c/tot*100)}%`).join(", ")+" · "+r.ok.length+" words analysed";
+ bars($("share"),Object.entries(r.share).sort((a,b)=>b[1]-a[1]).map(([n,c])=>[n,c/r.ok.length]));
+ $("chips").innerHTML=r.info.map(x=>x.l?`<span class="chip" title="${x.l} (${x.sc})" style="background:${hs(x.l,.18)};border-color:${hs(x.l,.6)}">${x.w}</span>`:"").join("");
+ $("leg").innerHTML=Object.keys(r.share).map(n=>`<span><i class="dot" style="background:${hs(n,.85)}"></i>${n}</span>`).join("");
+ bars($("conf"),r.conf);
+ $("confn").textContent=r.conf.length>1?`Naive Bayes over the ${r.dom}-script words, competing among: ${r.conf.map(x=>x[0]).join(", ")}.`:`${r.dom} script is used by only one supported language, so it is identified directly from Unicode.`;
+ $("ng").innerHTML=r.ngs.length?r.ngs.map(([g,s,c])=>`<span class="ng">${g} ×${c}</span>`).join(""):"<span class='note'>Not needed — script alone identifies the language.</span>";
+}
+const SAMPLES=[["English","the project is about detecting languages in text"],["हिन्दी","मैं कल कॉलेज जाऊँगा क्योंकि परीक्षा है"],["اردو","آپ کیسے ہیں میں ٹھیک ہوں"],["తెలుగు","రేపు తరగతి ఎన్ని గంటలకు మొదలవుతుంది"],["Hinglish","mujhe yeh project bahut accha laga kal presentation hai"],["Code-mixed","kal ka meeting hai so please be on time yaar"],["Español","¿a qué hora empieza la clase mañana?"],["Français","je vais au marché pour acheter des légumes"]];
+$("samples").innerHTML=SAMPLES.map((s,i)=>`<button data-i="${i}">${s[0]}</button>`).join("");
+$("samples").onclick=e=>{const i=e.target.dataset.i;if(i!==undefined){$("inp").value=SAMPLES[i][1];render()}};
+$("run").onclick=render;
+$("clr").onclick=()=>{$("inp").value="";render()};
+$("inp").addEventListener("input",render);
+</script>
+</body>
+</html>
